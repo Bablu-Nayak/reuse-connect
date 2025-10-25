@@ -9,6 +9,28 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { z } from "zod";
+
+const donateSchema = z.object({
+  itemName: z.string()
+    .trim()
+    .min(3, "Item name must be at least 3 characters")
+    .max(100, "Item name must be less than 100 characters"),
+  category: z.enum(["clothes", "books", "furniture", "electronics", "toys", "other"], {
+    errorMap: () => ({ message: "Please select a category" })
+  }),
+  description: z.string()
+    .trim()
+    .max(1000, "Description must be less than 1000 characters")
+    .optional(),
+  address: z.string()
+    .trim()
+    .min(10, "Please provide a complete address")
+    .max(500, "Address is too long"),
+  contact: z.string()
+    .trim()
+    .regex(/^([\w\.-]+@[\w\.-]+\.\w+|\+?[\d\s\-\(\)]{10,})$/, "Must be a valid email or phone number")
+});
 
 const Donate = () => {
   const { toast } = useToast();
@@ -19,19 +41,34 @@ const Donate = () => {
     address: "",
     contact: "",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Basic validation
-    if (!formData.itemName || !formData.category || !formData.address || !formData.contact) {
+    // Validate with zod schema
+    const result = donateSchema.safeParse(formData);
+    
+    if (!result.success) {
+      // Extract errors from zod validation
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((error) => {
+        if (error.path[0]) {
+          fieldErrors[error.path[0] as string] = error.message;
+        }
+      });
+      setErrors(fieldErrors);
+      
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
+        title: "Validation Error",
+        description: "Please check the form for errors.",
         variant: "destructive",
       });
       return;
     }
+
+    // Clear errors on successful validation
+    setErrors({});
 
     toast({
       title: "Donation Listed Successfully! 🎉",
@@ -72,9 +109,15 @@ const Donate = () => {
                   id="itemName"
                   placeholder="e.g., Winter Jacket, Children's Books"
                   value={formData.itemName}
-                  onChange={(e) => setFormData({ ...formData, itemName: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, itemName: e.target.value });
+                    if (errors.itemName) setErrors({ ...errors, itemName: "" });
+                  }}
                   className="mt-2"
                 />
+                {errors.itemName && (
+                  <p className="text-sm text-destructive mt-1">{errors.itemName}</p>
+                )}
               </div>
 
               {/* Category */}
@@ -82,7 +125,10 @@ const Donate = () => {
                 <Label htmlFor="category" className="text-base">Category *</Label>
                 <Select 
                   value={formData.category} 
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, category: value });
+                    if (errors.category) setErrors({ ...errors, category: "" });
+                  }}
                 >
                   <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Select a category" />
@@ -96,6 +142,9 @@ const Donate = () => {
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.category && (
+                  <p className="text-sm text-destructive mt-1">{errors.category}</p>
+                )}
               </div>
 
               {/* Photo Upload */}
@@ -116,9 +165,15 @@ const Donate = () => {
                   id="description"
                   placeholder="Provide details about the item's condition, size, etc."
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value });
+                    if (errors.description) setErrors({ ...errors, description: "" });
+                  }}
                   className="mt-2 min-h-32"
                 />
+                {errors.description && (
+                  <p className="text-sm text-destructive mt-1">{errors.description}</p>
+                )}
               </div>
 
               {/* Pickup Address */}
@@ -128,9 +183,15 @@ const Donate = () => {
                   id="address"
                   placeholder="Enter your full address for item pickup"
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, address: e.target.value });
+                    if (errors.address) setErrors({ ...errors, address: "" });
+                  }}
                   className="mt-2"
                 />
+                {errors.address && (
+                  <p className="text-sm text-destructive mt-1">{errors.address}</p>
+                )}
               </div>
 
               {/* Contact Info */}
@@ -138,12 +199,17 @@ const Donate = () => {
                 <Label htmlFor="contact" className="text-base">Contact Information *</Label>
                 <Input
                   id="contact"
-                  type="tel"
                   placeholder="Phone number or email"
                   value={formData.contact}
-                  onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, contact: e.target.value });
+                    if (errors.contact) setErrors({ ...errors, contact: "" });
+                  }}
                   className="mt-2"
                 />
+                {errors.contact && (
+                  <p className="text-sm text-destructive mt-1">{errors.contact}</p>
+                )}
               </div>
 
               {/* Submit Button */}
